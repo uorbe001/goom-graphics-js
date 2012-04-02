@@ -4,8 +4,8 @@ var exec = require('child_process').exec;
 var requirejs = require('requirejs');
 
 var config = {
-	baseUrl: ".",
-	name: "src/goom-graphics",
+	baseUrl: "src/",
+	name: "goom-graphics",
 	out: "dist/goom-graphics.min.js",
 };
 
