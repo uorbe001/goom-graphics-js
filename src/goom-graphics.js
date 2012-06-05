@@ -1,10 +1,3 @@
-if (typeof define !== 'function') {
-	var define = require('amdefine')(module);
-}
-
-define(["./geometry", "./utils"], function(Geometry, Utils) {
-	var Graphics = {};
-	Graphics.Geometry = Geometry;
-	Graphics.Utils = Utils;
-	return Graphics;
-});
+var Geometry = require("./geometry"), Utils = require("./utils");
+exports.Geometry = Geometry;
+exports.Utils = Utils;
