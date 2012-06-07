@@ -1,5 +1,5 @@
 {
-	"name": "goom-graphics",
+	"name": "goom-graphics-js",
 	"version": "0.0.1",
 	"dependencies": {},
 	"devDependencies": {"jasmine-node": ">=1.0.22", "jake": ">=0.2.28", "sentry": "0.1.2", "browserify": ">=1.10.15"},

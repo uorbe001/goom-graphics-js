@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Jasmine Spec Runner</title>
+        <link rel="stylesheet" href="../support/jasmine.css" type="text/css">
+    </head>
+
+    <body>
+        <!-- load jasmine -->
+        <script type="text/javascript" src="../support/jasmine.js"></script>
+        <script type="text/javascript" src="../support/jasmine-html.js"></script>
+        <!-- load sinon -->
+        <script type="text/javascript" src="../support/sinon.js"></script>
+
+        <!-- load your javascript files -->
+        <script type="text/javascript" src="../../dist/goom-graphics.js"></script>
+
+        <!-- load your spec files -->
+        <script type="text/javascript" src="asset_manager.spec.js"></script>
+        <script type="text/javascript" src="base_asset_handler.spec.js"></script>
+        <script type="text/javascript" src="model_handler.spec.js"></script>
+        <script type="text/javascript" src="program_handler.spec.js"></script>
+        <script type="text/javascript" src="texture_handler.spec.js"></script>
+        
+        <!-- run specs -->
+        <script type="text/javascript">
+          jasmine.getEnv().addReporter(new jasmine.TrivialReporter());
+          jasmine.getEnv().execute();
+        </script>
+
+        <div style="display:none" id="canvas-holder"></div>
+    </body>
+</html>
+
+
