@@ -1,6 +1,4 @@
-var ModelHandler = require("./model_handler"), Model = require("./model");
-
-describe('ModelHandler', function() {
+describe('Graphics.ModelHandler', function() {
 	beforeEach(function() {
 		ch = document.createElement('div');
 		ch.style = 'display:none';
@@ -11,7 +9,7 @@ describe('ModelHandler', function() {
 	});
 
 	it('should get and create a model', function(){
-		var ah = new ModelHandler();
+		var ah = new Graphics.ModelHandler();
 		var model = null;
 
 		this.onSuccess = function(mdl) {
@@ -28,12 +26,12 @@ describe('ModelHandler', function() {
 
 		runs(function() {
 			expect(this.onSuccess).toHaveBeenCalledWith(model);
-			expect(model instanceof Model).toBeTruthy();
+			expect(model instanceof Graphics.Model).toBeTruthy();
 		});
 	});
 
 	it('should free model', function(){
-		var ah = new ModelHandler();
+		var ah = new Graphics.ModelHandler();
 		var model = null;
 
 		this.onSuccess = function(mdl) {

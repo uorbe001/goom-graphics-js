@@ -1,6 +1,4 @@
-var TextureHandler = require("../../src/texture_handler");
-
-describe('TextureHandler', function() {
+describe('Graphics.TextureHandler', function() {
 	beforeEach(function() {
 		ch = document.createElement('div');
 		ch.style = 'display:none';
@@ -11,7 +9,7 @@ describe('TextureHandler', function() {
 	});
 
 	it('should get and create a texture', function(){
-		var ah = new TextureHandler();
+		var ah = new Graphics.TextureHandler();
 		var texture = null;
 
 		this.onSuccess = function(tex) {
@@ -33,7 +31,7 @@ describe('TextureHandler', function() {
 	});
 
 	it('should free texture', function(){
-		var ah = new TextureHandler();
+		var ah = new Graphics.TextureHandler();
 		var texture = null;
 
 		spyOn(Utils, 'deleteTexture').andCallThrough()

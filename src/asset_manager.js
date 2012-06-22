@@ -48,21 +48,11 @@ AssetManager.prototype.get = function(gl, url, onSuccess, onError) {
 		//If this url is not matched by this handler, keep looking.
 		if (!url.match(new RegExp("[^\.]*." + extension + "$"))) continue;
 
-		if (onError) {
-			handler.get(gl, url, onSuccess, onError);
-			return;
-		}
-
-		handler.get(gl, url, onSuccess);
+		handler.get(gl, url, onSuccess, onError);
 		return;
 	}
 
-	if (onError) {
-		AssetManager.defaultHandler.get(gl, url, onSuccess, onError);
-		return;
-	}
-
-	AssetManager.defaultHandler.get(gl, url, onSuccess);
+	AssetManager.defaultHandler.get(gl, url, onSuccess, onError);
 };
 
 /**
@@ -81,21 +71,12 @@ AssetManager.prototype.free = function(gl, url, callback) {
 		handler = handlers[extension];
 		//If this url is not matched by this handler, keep looking.
 		if (!url.match(new RegExp("[^\.]*\." + extension + "$"))) continue;
-	
-		if (callback != null) {
-			handler.free(gl, url, callback);
-			return;
-		}
 
-		handler.free(gl, url);
-		return;
-	}
-	if (callback != null) {
-		AssetManager.defaultHandler.free(gl, url, callback);
+		handler.free(gl, url, callback);
 		return;
 	}
 
-	AssetManager.defaultHandler.free(gl, url);
+	AssetManager.defaultHandler.free(gl, url, callback);
 	return;
 };
 

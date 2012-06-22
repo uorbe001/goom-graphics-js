@@ -1,6 +1,4 @@
-var ProgramHandler = require("../../src/program_handler"), Utils = require("../../src/utils");
-
-describe('ProgramHandler', function() {
+describe('Graphics.ProgramHandler', function() {
 	beforeEach(function() {
 		ch = document.createElement('div');
 		ch.style = 'display:none';
@@ -11,7 +9,7 @@ describe('ProgramHandler', function() {
 	});
 
 	it('should get and create a program', function(){
-		var ah = new ProgramHandler();
+		var ah = new Graphics.ProgramHandler();
 		var program = null;
 
 		this.onSuccess = function(prg) {
@@ -33,7 +31,7 @@ describe('ProgramHandler', function() {
 	});
 
 	it('should free program', function(){
-		var ah = new ProgramHandler();
+		var ah = new Graphics.ProgramHandler();
 		var program = null;
 
 		spyOn(Utils, 'deleteProgram').andCallThrough()

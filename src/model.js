@@ -119,7 +119,7 @@ Model.prototype.load = function(gl, model_data, buffer) {
 	if (!((model_data != null) && (buffer != null))) throw "Model#load expects gl context, model data and model buffer";
 
 	var asset_manager = new AssetManager();
-	var program_url = model_data.program_url != null ? model_data.program_url : 'assets/default.wglprog';
+	var program_url = model_data.program_url != null ? model_data.program_url : '/assets/default.wglprog';
 	//Set the program.
 	asset_manager.get(gl, program_url, function(prg) {
 		that.program = prg;
@@ -128,7 +128,7 @@ Model.prototype.load = function(gl, model_data, buffer) {
 	this.meshes = JSON.parse(JSON.stringify(model_data.meshes));
 	
 	for (var i = 0, len = this.meshes.length; i < len; i++) {
-		mesh = this.meshes[_i];
+		mesh = this.meshes[i];
 
 		asset_manager.get(gl, mesh.defaultTexture, function(texture) {
 			mesh.diffuse = texture;
@@ -206,9 +206,9 @@ Model.prototype.bind = function(gl, projection_matrix, view_matrix) {
 	@param {WebGLContext} gl The webgl context used to handle most resources.
 	@param {Matrix4D} projection_matrix The projection matrix used to render.
 	@param {Matrix4D} view_mat The matrix with the camera's position.
-	@param {Matrix4D} model_matrix model transformation matrix.
+	@param {ModelInstance} insctance of the model.
 */
-Model.prototype.draw = function(gl, projection_matrix, view_matrix, model_matrix) {
+Model.prototype.draw = function(gl, projection_matrix, view_matrix, instance) {
 	var mesh, submesh, i, j, len, len2;
 	//Bind buffers and used program
 	gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
@@ -224,7 +224,7 @@ Model.prototype.draw = function(gl, projection_matrix, view_matrix, model_matrix
 	gl.uniformMatrix4fv(this.program.uniforms.uViewMatrix, false, view_matrix.data);
 
 	//Push model matrix to the program
-	gl.uniformMatrix4fv(this.program.uniforms.uModelMatrix, false, model_matrix.data);
+	gl.uniformMatrix4fv(this.program.uniforms.uModelMatrix, false, instance.transformationMatrix.data);
 
 	for (i = 0, len = this.meshes.length; i < len; i++) {
 		mesh = this.meshes[i];
@@ -234,7 +234,7 @@ Model.prototype.draw = function(gl, projection_matrix, view_matrix, model_matrix
 
 		for (j = 0, len2 = mesh.submeshes.length; j < len2; j++) {
 			submesh = mesh.submeshes[j];
-			gl.drawdata(gl.TRIANGLES, submesh.indexCount, gl.UNSIGNED_SHORT, submesh.indexOffset * 2);
+			gl.drawElements(gl.TRIANGLES, submesh.indexCount, gl.UNSIGNED_SHORT, submesh.indexOffset * 2);
 		}
 	}
 };
@@ -244,10 +244,10 @@ Model.prototype.draw = function(gl, projection_matrix, view_matrix, model_matrix
 	@param {WebGLContext} gl The webgl context used to handle most resources.
 	@param {Matrix4D} projection_matrix The projection matrix used to render.
 	@param {Matrix4D} view_mat The matrix with the camera's position.
-	@param {Array} model_matrices array holding the model transformation matrices.
+	@param {Array} instances array holding the instances to be drawn.
 */
-Model.prototype.draw = function(gl, projection_matrix, view_matrix, model_matrices) {
-	var mesh, submesh, i, j, len, len2, model_matrix;
+Model.prototype.drawInstances = function(gl, projection_matrix, view_matrix, instances) {
+	var mesh, submesh, i, j, len, len2, instance;
 	//Bind buffers and used program
 	gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
 	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
@@ -262,11 +262,11 @@ Model.prototype.draw = function(gl, projection_matrix, view_matrix, model_matric
 	gl.uniformMatrix4fv(this.program.uniforms.uViewMatrix, false, view_matrix.data);
 
 	//Draw once per instance.
-	for (var k = 0, len3 = model_matrices; k < len3; k++) {
-		var model_matrix = model_matrices[k];
+	for (var k = 0, len3 = instances.length; k < len3; k++) {
+		instance = instances[k];
 
 		//Push model matrix to the program
-		gl.uniformMatrix4fv(this.program.uniforms.uModelMatrix, false, model_matrix.data);
+		gl.uniformMatrix4fv(this.program.uniforms.uModelMatrix, false, instance.transformationMatrix.data);
 
 		for (i = 0, len = this.meshes.length; i < len; i++) {
 			mesh = this.meshes[i];
@@ -276,7 +276,7 @@ Model.prototype.draw = function(gl, projection_matrix, view_matrix, model_matric
 
 			for (j = 0, len2 = mesh.submeshes.length; j < len2; j++) {
 				submesh = mesh.submeshes[j];
-				gl.drawdata(gl.TRIANGLES, submesh.indexCount, gl.UNSIGNED_SHORT, submesh.indexOffset * 2);
+				gl.drawElements(gl.TRIANGLES, submesh.indexCount, gl.UNSIGNED_SHORT, submesh.indexOffset * 2);
 			}
 		}
 	}

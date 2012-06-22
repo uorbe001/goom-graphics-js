@@ -12,6 +12,7 @@ function Geometry(gl, program, data) {
 	//Prepare the necessary data depending on the given shape data.
 	switch (data.type.toLowerCase()) {
 		case 'sphere':
+			//TODO
 			break;
 		case 'box':
 			for (i = 0; i <= 7; i++) {
@@ -24,6 +25,7 @@ function Geometry(gl, program, data) {
 			index_data = [0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 0, 4, 7, 0, 7, 1, 1, 7, 6, 1, 6, 2, 2, 6, 5, 2, 5, 3, 4, 0, 3, 4, 3, 5];
 			break;
 		case 'plane':
+			//TODO
 			break;
 		default:
 			throw "Unkwnown geometry type";

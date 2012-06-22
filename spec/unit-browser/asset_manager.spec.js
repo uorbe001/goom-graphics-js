@@ -64,7 +64,7 @@ describe('Graphics.AssetManager', function() {
 		var callback = jasmine.createSpy();
 		this.am.registerHandler("test", this.ah);
 		this.am.get({}, 'prueba.test', callback);
-		expect(this.ah.get).toHaveBeenCalledWith({}, 'prueba.test', callback);
+		expect(this.ah.get).toHaveBeenCalledWith({}, 'prueba.test', callback, undefined);
 	});
 
 	it('gets assets with the correct handler', function() {
@@ -75,7 +75,7 @@ describe('Graphics.AssetManager', function() {
 		this.am.registerHandler("test2", bh);
 		var callback = jasmine.createSpy();
 		this.am.get({}, 'prueba.test', callback);
-		expect(this.ah.get).toHaveBeenCalledWith({}, 'prueba.test', callback);
+		expect(this.ah.get).toHaveBeenCalledWith({}, 'prueba.test', callback, undefined);
 		expect(bh.get).not.toHaveBeenCalled();
 	});
 

@@ -9,7 +9,7 @@ task("default", function(params) {
 
 desc("Runs all the tests.");
 task("test", function(params){
-	exec("jasmine-node spec/", function (error, stdout, stderr) {
+	exec("jasmine-node spec/unit", function (error, stdout, stderr) {
 		sys.print(stdout);
 	});
 });
