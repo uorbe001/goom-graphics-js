@@ -16,16 +16,16 @@ AssetManager.handlers = {};
 AssetManager.defaultHandler = new BaseAssetHandler();
 
 /**
-	Registers a new handler for resources matching the given regex. The handler 
-	will be a new instance of the class named in the second parameter, and 
+	Registers a new handler for resources matching the given regex. The handler
+	will be a new instance of the class named in the second parameter, and
 	must extend AssetHandlers.BaseAssetHandler.
-	@param {String} extension A string containing the extension to be matched  agains the url names when loading a resource. This shouldn't be 
+	@param {String} extension A string containing the extension to be matched  agains the url names when loading a resource. This shouldn't be
 	an actual RegEx, it has to go without the start and end slashes.
 	@param	handler A handler for the regex, it must extend AssetHandlers.BaseAssetHandler.
 	@throws {MissingParameterException} If one of the required parameters ismissing.
 */
 AssetManager.prototype.registerHandler = function(extension, handler) {
-	if (!((extension != null) && (handler != null))) throw "AssetManager#registerHandler expects an extension and a handler";
+	if (!((extension !== null) && (handler !== null))) throw "AssetManager#registerHandler expects an extension and a handler";
 	AssetManager.handlers[extension] = handler;
 };
 
