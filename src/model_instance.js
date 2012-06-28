@@ -31,12 +31,7 @@ ModelInstance.prototype.updateFromRemote = function(data) {
 	var distance = 0;
 
 	if (data.position) {
-		distance = this.position.substract(data.position, __helperVector).length();
-
-		if (distance > 2)
-			this.position.set(data.position.x, data.position.y, data.position.z);
-		else if (distance > 0.1)
-			this.position.add(__helperVector.scale(0.1));
+		this.position.set(data.position.x, data.position.y, data.position.z);
 	}
 
 	if (data.orientation) {
@@ -59,8 +54,8 @@ ModelInstance.prototype.updateFromRemote = function(data) {
 	Integrates this instance and updates its position.
 */
 ModelInstance.prototype.integrate = function(duration) {
-	this.position.add(this.velocity.scale(duration, __helperVector));
-	this.orientation.addVector(this.angular_velocity.scale(duration, __helperVector));
+	this.position.add(this.velocity.scale(duration * 0.8, __helperVector));
+	this.orientation.addVector(this.angular_velocity.scale(duration * 0.8, __helperVector));
 	this.transformationMatrix.makeFromPositionAndOrientation(this.position, this.orientation);
 };
 
