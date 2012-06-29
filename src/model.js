@@ -20,6 +20,7 @@ function Model() {
 	this.meshes = null;
 	this.ready = false;
 	this.program = null;
+	this.DEFAULT_SHADER = '/assets/default_model.wglprog';
 }
 
 /**
@@ -64,7 +65,7 @@ Model.load = function(gl, url, callback) {
 	@returns lumpID.
 	@inner
 */
-Model.prototype._lumpId = function(id) {
+Model.prototype.__lumpId = function(id) {
 	var str;
 	str = "";
 	str += String.fromCharCode(id & 0xff);
@@ -81,7 +82,7 @@ Model.prototype._lumpId = function(id) {
 	@returns the vertex buffer array.
 	@inner
 */
-Model.prototype._parseVertexData = function(buffer, offset, length) {
+Model.prototype.__parseVertexData = function(buffer, offset, length) {
 	var vertexHeader = new Uint32Array(buffer, offset, 2);
 	this.vertexFormat = vertexHeader[0];
 	this.vertexStride = vertexHeader[1];
@@ -101,7 +102,7 @@ Model.prototype._parseVertexData = function(buffer, offset, length) {
 	@returns the index buffer array.
 	@inner
 */
-Model.prototype._parseIndexData = function(buffer, offset, length) {
+Model.prototype.__parseIndexData = function(buffer, offset, length) {
 	return new Uint16Array(buffer, offset, length / 2);
 };
 
@@ -115,60 +116,78 @@ Model.prototype._parseIndexData = function(buffer, offset, length) {
 	@returns {Model} this
 */
 Model.prototype.load = function(gl, model_data, buffer) {
-	var i, indexArray, length, lumpCount, lump_id, mesh, offset, that = this, vertexArray;
+	var i, len, indexArray, length, lumpCount, lump_id, mesh, offset, that = this, vertexArray;
 	if (!((model_data != null) && (buffer != null))) throw "Model#load expects gl context, model data and model buffer";
 
 	var asset_manager = new AssetManager();
-	var program_url = model_data.program_url != null ? model_data.program_url : '/assets/default.wglprog';
+	var program_url = model_data.program_url != null ? model_data.program_url : this.DEFAULT_SHADER;
 	//Set the program.
 	asset_manager.get(gl, program_url, function(prg) {
 		that.program = prg;
 	});
 
+	this.__parseModel(model_data);
+	this.__compileMaterials(gl);
+	var arrays = this.__parseBinary(buffer);
+
+	//Create model buffers.
+	this.vertexBuffer = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+	gl.bufferData(gl.ARRAY_BUFFER, arrays.vertexArray, gl.STATIC_DRAW);
+
+	this.indexBuffer = gl.createBuffer();
+	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+	gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, arrays.indexArray, gl.STATIC_DRAW);
+
+	this.ready = true;
+	return this;
+};
+
+Model.prototype.__parseModel = function(model_data) {
 	this.meshes = JSON.parse(JSON.stringify(model_data.meshes));
-	
-	for (var i = 0, len = this.meshes.length; i < len; i++) {
+};
+
+Model.prototype.__compileMaterials = function(gl) {
+	var asset_manager = new AssetManager();
+	for (i = 0, len = this.meshes.length; i < len; i++) {
 		mesh = this.meshes[i];
 
-		asset_manager.get(gl, mesh.defaultTexture, function(texture) {
-			mesh.diffuse = texture;
-		});
+		!function (mesh) {
+			asset_manager.get(gl, mesh.defaultTexture, function(texture) {
+				mesh.diffuse = texture;
+			});
+		} (mesh);
 	}
+};
 
-	var header = new Uint32Array(buffer, 0, 3);
+Model.prototype.__parseBinary = function(buffer) {
+	var header = new Uint32Array(buffer, 0, 3), length;
 
-	if (this._lumpId(header[0]) !== 'wglv') throw "The model buffer format is incorrect.";
+	if (this.__lumpId(header[0]) !== 'wglv') throw "The model buffer format is incorrect.";
 	if (header[1] !== 1) throw "The model buffer format is incorrect.";
 
 	lumpCount = header[2];
 	header = new Uint32Array(buffer, 12, lumpCount * 3);
-	indexArray = vertexArray = null;
+	var output = {  indexArray: null,
+					vertexArray: null
+	};
 
 	for (i = 0; 0 <= lumpCount ? i <= lumpCount : i >= lumpCount; 0 <= lumpCount ? i++ : i--) {
-		lump_id = this._lumpId(header[i * 3]);
+		lump_id = this.__lumpId(header[i * 3]);
 		offset = header[(i * 3) + 1];
 		length = header[(i * 3) + 2];
 		
 		switch (lump_id) {
 			case "vert":
-				vertexArray = this._parseVertexData(buffer, offset, length);
+				output.vertexArray = this.__parseVertexData(buffer, offset, length);
 				break;
 			case "indx":
-				indexArray = this._parseIndexData(buffer, offset, length);
+				output.indexArray = this.__parseIndexData(buffer, offset, length);
 				break;
 		}
 	}
 
-	//Create model buffers.
-	this.vertexBuffer = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
-	gl.bufferData(gl.ARRAY_BUFFER, vertexArray, gl.STATIC_DRAW);
-
-	this.indexBuffer = gl.createBuffer();
-	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
-	gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indexArray, gl.STATIC_DRAW);
-	this.ready = true;
-	return this;
+	return output;
 };
 
 /**

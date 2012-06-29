@@ -23,7 +23,7 @@ function ModelHandler() {
 /**
 	This method is called when the remote request is completed and is expected to treat the response data. The returned data will be
 	stored in the cache and used to call the callback given to AssetHandlers.ModelHandler#get.
-	This method is expected to be overriden to create new asset handlers.
+	It will automattically detect wether to load a normal model or an skinnned model based on extension.
 	@param {WebGLContext} gl The webgl context used to handle most resources.
 	@param {String} url The url used to request the asset to the server.
 	@param model_data The response text in the request to the remote server.
@@ -32,13 +32,21 @@ function ModelHandler() {
 	@returns {Model} The loaded model to be returned.
 */
 ModelHandler.prototype.parseResponse = function(gl, url, model_data, buffer) {
-	if (url.match(/[^\.]*.wglmodel$/)) {
-		var model = new Model();
+	var model = null;
+
+	if (url.match(/[^\.]*.skinned.wglmodel$/)) {
+		model = new SkinnedModel();
 		model.load(gl, JSON.parse(model_data), buffer);
 		return model;
 	}
 
-	return null;
+	if (url.match(/[^\.]*.wglmodel$/)) {
+		model = new Model();
+		model.load(gl, JSON.parse(model_data), buffer);
+		return model;
+	}
+
+	return model;
 };
 
 /**
