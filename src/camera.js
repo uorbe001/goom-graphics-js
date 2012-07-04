@@ -48,7 +48,9 @@ Camera.prototype.__calculateProjection = function() {
 	@inner recalculates the view matrix.
 */
 Camera.prototype.__calculateView = function() {
-	this.view.makeLookAt(this.position, this.target, this.upVector);
+	//this.view.makeLookAt(this.position, this.target, this.upVector);
+	this.view.makeIdentity();
+	this.view.translate(this.position.x, this.position.y, this.position.z);
 };
 
 /**

@@ -1,4 +1,4 @@
-var BaseAssetHandler = require("./base_asset_handler"), Model = require("./model");
+var BaseAssetHandler = require("./base_asset_handler"), Model = require("./model"), SkinnedModel = require("./skinned_model");
 
 var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
 	for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
@@ -73,7 +73,7 @@ ModelHandler.prototype.get = function(gl, url, onSuccess, onError) {
 	}
 
 	vert_request = new XMLHttpRequest();
-	url_vert = url.match(/([^\.]*)\.wglmodel/)[1];
+	url_vert = url.match(/([^]*)\.wglmodel/)[1];
 	url_vert += '.wglvert';
 	vert_request.open('GET', url_vert, true);
 	vert_request.responseType = "arraybuffer";

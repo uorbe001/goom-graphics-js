@@ -42,10 +42,10 @@ Model.VertexFormat = {
 Model.MAX_BONES_PER_MESH = 50;
 
 /**
-	This function can be used to create and load a new Model from a given url, where a wglmodel and wlgvert files pair is expected to be. 
+	This function can be used to create and load a new Model from a given url, where a wglmodel and wlgvert files pair is expected to be.
 	Will use the propper asset handler in the background calling it through an asset manager.
 	@param {WebGLContext} gl The webgl context used to handle most resources.
-	@param {String} url The name of the resource in the server, this url should have the .wglmodel extension, and will fetch both the .wglmodel 
+	@param {String} url The name of the resource in the server, this url should have the .wglmodel extension, and will fetch both the .wglmodel
 		and .wglvert files.
 	@param {Function} callback This callback will be called with the loaded model.
 	@returns {Model} the loaded model.
@@ -71,7 +71,8 @@ Model.prototype.__lumpId = function(id) {
 	str += String.fromCharCode(id & 0xff);
 	str += String.fromCharCode((id >> 8) & 0xff);
 	str += String.fromCharCode((id >> 16) & 0xff);
-	return str += String.fromCharCode((id >> 24) & 0xff);
+	str += String.fromCharCode((id >> 24) & 0xff);
+	return str;
 };
 
 /**
@@ -238,7 +239,7 @@ Model.prototype.draw = function(gl, projection_matrix, view_matrix, instance) {
 	gl.enableVertexAttribArray(this.program.attributes.aNormal);
 	gl.vertexAttribPointer(this.program.attributes.aPosition, 3, gl.FLOAT, false, this.vertexStride, 0);
 	gl.vertexAttribPointer(this.program.attributes.aTextureCoordinate, 2, gl.FLOAT, false, this.vertexStride, 12);
-	gl.vertexAttribPointer(this.program.attributes.aNormal, 3, gl.FLOAT, true, this.vertexStride, 20);
+	gl.vertexAttribPointer(this.program.attributes.aNormal, 3, gl.FLOAT, false, this.vertexStride, 20);
 	gl.uniformMatrix4fv(this.program.uniforms.uProjectionMatrix, false, projection_matrix.data);
 	gl.uniformMatrix4fv(this.program.uniforms.uViewMatrix, false, view_matrix.data);
 
@@ -276,7 +277,7 @@ Model.prototype.drawInstances = function(gl, projection_matrix, view_matrix, ins
 	gl.enableVertexAttribArray(this.program.attributes.aNormal);
 	gl.vertexAttribPointer(this.program.attributes.aPosition, 3, gl.FLOAT, false, this.vertexStride, 0);
 	gl.vertexAttribPointer(this.program.attributes.aTextureCoordinate, 2, gl.FLOAT, false, this.vertexStride, 12);
-	gl.vertexAttribPointer(this.program.attributes.aNormal, 3, gl.FLOAT, true, this.vertexStride, 20);
+	gl.vertexAttribPointer(this.program.attributes.aNormal, 3, gl.FLOAT, false, this.vertexStride, 20);
 	gl.uniformMatrix4fv(this.program.uniforms.uProjectionMatrix, false, projection_matrix.data);
 	gl.uniformMatrix4fv(this.program.uniforms.uViewMatrix, false, view_matrix.data);
 

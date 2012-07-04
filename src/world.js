@@ -1,6 +1,6 @@
 var Model = require("./model"), ModelInstance = require("./model_instance"), Mathematics = require("goom-math-js"),
 	AssetManager = require("./asset_manager"), TextureHandler = require("./texture_handler"), ModelHandler = require("./model_handler"),
-	ProgramHandler = require("./program_handler"), Camera = require("./camera"), Geometry = require("./geometry");
+	ProgramHandler = require("./program_handler"), AnimationHandler = require("./animation_handler"), Camera = require("./camera"), Geometry = require("./geometry");
 
 /**
 	Creates an World.
@@ -36,11 +36,15 @@ function World(config, gl, viewport_width, viewport_height, callback) {
 	this.assetManager.registerHandler("(png|jpg|bmp|gif)", new TextureHandler());
 	this.assetManager.registerHandler("wglprog", new ProgramHandler());
 	this.assetManager.registerHandler("wglmodel", new ModelHandler());
+	this.assetManager.registerHandler("wglanim", new AnimationHandler());
 
 	//Init webgl functions etc.
-	gl.enable(gl.CULL_FACE);
+	//gl.enable(gl.CULL_FACE);
 	gl.enable(gl.DEPTH_TEST);
-	gl.depthFunc(gl.LEQUAL);
+	//gl.depthFunc(gl.LEQUAL);
+	gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+	gl.clearColor(0, 0, 0, 1);
+	gl.clearDepth(1.0);
 
 	var downloading_models = 0, done_loading_instances = false, cam, cam_data, plane_data;
 
@@ -51,6 +55,12 @@ function World(config, gl, viewport_width, viewport_height, callback) {
 		!function (key) {
 			Model.load(gl, config.render_models[key], function(model) {
 				that.models[key] = model;
+
+				if (that.instances[key])
+					for (var i = 0, len = that.instances[key].length; i < len; ++i) {
+						that.instances[key][i].model = that.models[key];
+					}
+
 				downloading_models -= 1;
 				if (downloading_models === 0 && done_loading_instances) callback();
 			});
@@ -116,7 +126,6 @@ World.prototype.draw = function() {
 	var gl = this.gl;
 	//Clean up canvas before rendering.
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-	gl.clearColor(0, 0, 0, 1);
 
 	//Draw the model instances
 	for (var key in this.instances) {
@@ -163,6 +172,7 @@ World.prototype.addInstance = function(data) {
 	if (!this.instances[data.model]) this.instances[data.model] = [];
 	//Push the new instance.
 	var model_instance = new ModelInstance(data);
+	if (this.models[data.model]) model_instance.model = this.models[data.model];
 	this.instances[data.model].push(model_instance);
 	this.allInstances.push(model_instance);
 };

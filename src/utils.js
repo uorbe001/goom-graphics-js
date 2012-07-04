@@ -72,6 +72,7 @@ Utils.createProgram = function(gl, vertexShaderSource, fragmentShaderSource) {
 	for (i = 0, len = vMatches.length; i < len; i++) {
 		uniform = vMatches[i];
 		uniformName = uniform.match(/uniform\s+[^\s]+\s+([^(\s|;)]+);/)[1];
+		if (uniformName.match(/(.+)\[[0-9]+\]/)) uniformName = uniformName.match(/(.+)\[[0-9]+\]/)[1];
 		shaderProgram.uniforms[uniformName] = gl.getUniformLocation(shaderProgram, uniformName);
 	}
 
@@ -80,6 +81,7 @@ Utils.createProgram = function(gl, vertexShaderSource, fragmentShaderSource) {
 	for (i = 0, len = vMatches.length; i < len; i++) {
 		attribute = vMatches[i];
 		attributeName = attribute.match(/attribute\s+[^\s]+\s+([^(\s|;)]+);/)[1];
+		if (attributeName.match(/(.+)\[[0-9]+\]/)) attributeName = attributeName.match(/(.+)\[[0-9]+\]/)[1];
 		shaderProgram.attributes[attributeName] = gl.getAttribLocation(shaderProgram, attributeName);
 	}
 

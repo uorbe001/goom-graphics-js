@@ -688,16 +688,16 @@ AssetManager.handlers = {};
 AssetManager.defaultHandler = new BaseAssetHandler();
 
 /**
-	Registers a new handler for resources matching the given regex. The handler 
-	will be a new instance of the class named in the second parameter, and 
+	Registers a new handler for resources matching the given regex. The handler
+	will be a new instance of the class named in the second parameter, and
 	must extend AssetHandlers.BaseAssetHandler.
-	@param {String} extension A string containing the extension to be matched  agains the url names when loading a resource. This shouldn't be 
+	@param {String} extension A string containing the extension to be matched  agains the url names when loading a resource. This shouldn't be
 	an actual RegEx, it has to go without the start and end slashes.
 	@param	handler A handler for the regex, it must extend AssetHandlers.BaseAssetHandler.
 	@throws {MissingParameterException} If one of the required parameters ismissing.
 */
 AssetManager.prototype.registerHandler = function(extension, handler) {
-	if (!((extension != null) && (handler != null))) throw "AssetManager#registerHandler expects an extension and a handler";
+	if (!((extension !== null) && (handler !== null))) throw "AssetManager#registerHandler expects an extension and a handler";
 	AssetManager.handlers[extension] = handler;
 };
 
@@ -756,7 +756,7 @@ module.exports = AssetManager;
 });
 
 require.define("/model_handler.js", function (require, module, exports, __dirname, __filename) {
-var BaseAssetHandler = require("./base_asset_handler"), Model = require("./model");
+var BaseAssetHandler = require("./base_asset_handler"), Model = require("./model"), SkinnedModel = require("./skinned_model");
 
 var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
 	for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
@@ -781,7 +781,7 @@ function ModelHandler() {
 /**
 	This method is called when the remote request is completed and is expected to treat the response data. The returned data will be
 	stored in the cache and used to call the callback given to AssetHandlers.ModelHandler#get.
-	This method is expected to be overriden to create new asset handlers.
+	It will automattically detect wether to load a normal model or an skinnned model based on extension.
 	@param {WebGLContext} gl The webgl context used to handle most resources.
 	@param {String} url The url used to request the asset to the server.
 	@param model_data The response text in the request to the remote server.
@@ -790,13 +790,21 @@ function ModelHandler() {
 	@returns {Model} The loaded model to be returned.
 */
 ModelHandler.prototype.parseResponse = function(gl, url, model_data, buffer) {
-	if (url.match(/[^\.]*.wglmodel$/)) {
-		var model = new Model();
+	var model = null;
+
+	if (url.match(/[^\.]*.skinned.wglmodel$/)) {
+		model = new SkinnedModel();
 		model.load(gl, JSON.parse(model_data), buffer);
 		return model;
 	}
 
-	return null;
+	if (url.match(/[^\.]*.wglmodel$/)) {
+		model = new Model();
+		model.load(gl, JSON.parse(model_data), buffer);
+		return model;
+	}
+
+	return model;
 };
 
 /**
@@ -823,7 +831,7 @@ ModelHandler.prototype.get = function(gl, url, onSuccess, onError) {
 	}
 
 	vert_request = new XMLHttpRequest();
-	url_vert = url.match(/([^\.]*)\.wglmodel/)[1];
+	url_vert = url.match(/([^]*)\.wglmodel/)[1];
 	url_vert += '.wglvert';
 	vert_request.open('GET', url_vert, true);
 	vert_request.responseType = "arraybuffer";
@@ -907,6 +915,7 @@ function Model() {
 	this.meshes = null;
 	this.ready = false;
 	this.program = null;
+	this.DEFAULT_SHADER = '/assets/default_model.wglprog';
 }
 
 /**
@@ -928,10 +937,10 @@ Model.VertexFormat = {
 Model.MAX_BONES_PER_MESH = 50;
 
 /**
-	This function can be used to create and load a new Model from a given url, where a wglmodel and wlgvert files pair is expected to be. 
+	This function can be used to create and load a new Model from a given url, where a wglmodel and wlgvert files pair is expected to be.
 	Will use the propper asset handler in the background calling it through an asset manager.
 	@param {WebGLContext} gl The webgl context used to handle most resources.
-	@param {String} url The name of the resource in the server, this url should have the .wglmodel extension, and will fetch both the .wglmodel 
+	@param {String} url The name of the resource in the server, this url should have the .wglmodel extension, and will fetch both the .wglmodel
 		and .wglvert files.
 	@param {Function} callback This callback will be called with the loaded model.
 	@returns {Model} the loaded model.
@@ -951,7 +960,7 @@ Model.load = function(gl, url, callback) {
 	@returns lumpID.
 	@inner
 */
-Model.prototype._lumpId = function(id) {
+Model.prototype.__lumpId = function(id) {
 	var str;
 	str = "";
 	str += String.fromCharCode(id & 0xff);
@@ -968,7 +977,7 @@ Model.prototype._lumpId = function(id) {
 	@returns the vertex buffer array.
 	@inner
 */
-Model.prototype._parseVertexData = function(buffer, offset, length) {
+Model.prototype.__parseVertexData = function(buffer, offset, length) {
 	var vertexHeader = new Uint32Array(buffer, offset, 2);
 	this.vertexFormat = vertexHeader[0];
 	this.vertexStride = vertexHeader[1];
@@ -988,7 +997,7 @@ Model.prototype._parseVertexData = function(buffer, offset, length) {
 	@returns the index buffer array.
 	@inner
 */
-Model.prototype._parseIndexData = function(buffer, offset, length) {
+Model.prototype.__parseIndexData = function(buffer, offset, length) {
 	return new Uint16Array(buffer, offset, length / 2);
 };
 
@@ -1002,60 +1011,78 @@ Model.prototype._parseIndexData = function(buffer, offset, length) {
 	@returns {Model} this
 */
 Model.prototype.load = function(gl, model_data, buffer) {
-	var i, indexArray, length, lumpCount, lump_id, mesh, offset, that = this, vertexArray;
+	var i, len, indexArray, length, lumpCount, lump_id, mesh, offset, that = this, vertexArray;
 	if (!((model_data != null) && (buffer != null))) throw "Model#load expects gl context, model data and model buffer";
 
 	var asset_manager = new AssetManager();
-	var program_url = model_data.program_url != null ? model_data.program_url : '/assets/default.wglprog';
+	var program_url = model_data.program_url != null ? model_data.program_url : this.DEFAULT_SHADER;
 	//Set the program.
 	asset_manager.get(gl, program_url, function(prg) {
 		that.program = prg;
 	});
 
+	this.__parseModel(model_data);
+	this.__compileMaterials(gl);
+	var arrays = this.__parseBinary(buffer);
+
+	//Create model buffers.
+	this.vertexBuffer = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+	gl.bufferData(gl.ARRAY_BUFFER, arrays.vertexArray, gl.STATIC_DRAW);
+
+	this.indexBuffer = gl.createBuffer();
+	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+	gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, arrays.indexArray, gl.STATIC_DRAW);
+
+	this.ready = true;
+	return this;
+};
+
+Model.prototype.__parseModel = function(model_data) {
 	this.meshes = JSON.parse(JSON.stringify(model_data.meshes));
-	
-	for (var i = 0, len = this.meshes.length; i < len; i++) {
+};
+
+Model.prototype.__compileMaterials = function(gl) {
+	var asset_manager = new AssetManager();
+	for (i = 0, len = this.meshes.length; i < len; i++) {
 		mesh = this.meshes[i];
 
-		asset_manager.get(gl, mesh.defaultTexture, function(texture) {
-			mesh.diffuse = texture;
-		});
+		!function (mesh) {
+			asset_manager.get(gl, mesh.defaultTexture, function(texture) {
+				mesh.diffuse = texture;
+			});
+		} (mesh);
 	}
+};
 
-	var header = new Uint32Array(buffer, 0, 3);
+Model.prototype.__parseBinary = function(buffer) {
+	var header = new Uint32Array(buffer, 0, 3), length;
 
-	if (this._lumpId(header[0]) !== 'wglv') throw "The model buffer format is incorrect.";
+	if (this.__lumpId(header[0]) !== 'wglv') throw "The model buffer format is incorrect.";
 	if (header[1] !== 1) throw "The model buffer format is incorrect.";
 
 	lumpCount = header[2];
 	header = new Uint32Array(buffer, 12, lumpCount * 3);
-	indexArray = vertexArray = null;
+	var output = {  indexArray: null,
+					vertexArray: null
+	};
 
 	for (i = 0; 0 <= lumpCount ? i <= lumpCount : i >= lumpCount; 0 <= lumpCount ? i++ : i--) {
-		lump_id = this._lumpId(header[i * 3]);
+		lump_id = this.__lumpId(header[i * 3]);
 		offset = header[(i * 3) + 1];
 		length = header[(i * 3) + 2];
 		
 		switch (lump_id) {
 			case "vert":
-				vertexArray = this._parseVertexData(buffer, offset, length);
+				output.vertexArray = this.__parseVertexData(buffer, offset, length);
 				break;
 			case "indx":
-				indexArray = this._parseIndexData(buffer, offset, length);
+				output.indexArray = this.__parseIndexData(buffer, offset, length);
 				break;
 		}
 	}
 
-	//Create model buffers.
-	this.vertexBuffer = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
-	gl.bufferData(gl.ARRAY_BUFFER, vertexArray, gl.STATIC_DRAW);
-
-	this.indexBuffer = gl.createBuffer();
-	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
-	gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indexArray, gl.STATIC_DRAW);
-	this.ready = true;
-	return this;
+	return output;
 };
 
 /**
@@ -1180,6 +1207,128 @@ Model.prototype.isReady = function() {
 module.exports = Model;
 });
 
+require.define("/skinned_model.js", function (require, module, exports, __dirname, __filename) {
+var Model = require("./model");
+
+var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
+	for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
+	function ctor() { this.constructor = child; }
+	ctor.prototype = parent.prototype;
+	child.prototype = new ctor();
+	child.__super__ = parent.prototype;
+	return child;
+};
+
+
+__extends(SkinnedModel, Model);
+
+function SkinnedModel() {
+	SkinnedModel.__super__.constructor.call(this);
+	this.bones = null;
+	this.boneMatrices = null;
+	this.__dirtyBones = true;
+	this.DEFAULT_SHADER = '/assets/default_skinned_model.wglprog';
+}
+
+SkinnedModel.load = function(gl, url, callback) {
+	var asset_manager = new AssetManager();
+	try {
+		return asset_manager.get(gl, url, callback);
+	} catch (e) {
+		return console.log(e);
+	}
+};
+
+SkinnedModel.prototype.__parseBinary = function (buffer) {
+	var arrays = SkinnedModel.__super__.__parseBinary.call(this, buffer);
+
+	if(this.vertexFormat & Model.VertexFormat.BoneWeights) {
+		this.boneMatrices = new Float32Array(16 * Model.MAX_BONES_PER_MESH);
+	}
+
+	return arrays;
+};
+
+SkinnedModel.prototype.__parseModel = function(data) {
+	SkinnedModel.__super__.__parseModel.call(this, data);
+
+	this.bones = data.bones ? data.bones : [];
+
+	var temp_mat = new Mathematics.Matrix4D(), i, bone;
+	for (i in this.bones) {
+		bone = this.bones[i];
+
+		bone.pos = new Mathematics.Vector3D(bone.pos[0], bone.pos[1], bone.pos[2]);
+		bone.rot = new Mathematics.Quaternion(bone.rot[3], bone.rot[0], bone.rot[1], bone.rot[2]);
+		bone.bindPoseMat = new Mathematics.Matrix4D();
+		bone.bindPoseMat.set(bone.bindPoseMat);
+
+		bone.boneMat = new Mathematics.Matrix4D();
+		if (bone.parent == -1) {
+			bone.worldPos = bone.pos;
+			bone.worldRot = bone.rot;
+		} else {
+			bone.worldPos = new Mathematics.Vector3D();
+			bone.worldRot = new Mathematics.Quaternion();
+		}
+	}
+};
+
+SkinnedModel.prototype.draw = function (gl, projection_matrix, view_matrix, instance) {
+	if (!this.ready) { return; }
+
+	//Bind buffers and used program
+	gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+	gl.useProgram(this.program);
+
+	gl.enableVertexAttribArray(this.program.attributes.aPosition);
+	gl.enableVertexAttribArray(this.program.attributes.aTextureCoordinate);
+	gl.enableVertexAttribArray(this.program.attributes.aNormal);
+	gl.enableVertexAttribArray(this.program.attributes.aWeights);
+	gl.enableVertexAttribArray(this.program.attributes.aBones);
+
+	gl.uniformMatrix4fv(this.program.uniforms.uProjectionMatrix, false, projection_matrix.data);
+	gl.uniformMatrix4fv(this.program.uniforms.uViewMatrix, false, view_matrix.data);
+	//Push model matrix to the program
+	gl.uniformMatrix4fv(this.program.uniforms.uModelMatrix, false, instance.transformationMatrix.data);
+
+	gl.vertexAttribPointer(this.program.attributes.aPosition, 3, gl.FLOAT, false, this.vertexStride, 0);
+	gl.vertexAttribPointer(this.program.attributes.aTextureCoordinate, 2, gl.FLOAT, false, this.vertexStride, 12);
+	gl.vertexAttribPointer(this.program.attributes.aNormal, 3, gl.FLOAT, false, this.vertexStride, 20);
+	gl.vertexAttribPointer(this.program.attributes.aWeights, 3, gl.FLOAT, false, this.vertexStride, 48);
+	gl.vertexAttribPointer(this.program.attributes.aBones, 3, gl.FLOAT, false, this.vertexStride, 60);
+
+	var i, j, mesh, submesh, boneSet, indexOffset, indexCount;
+
+	if (this.__dirtyBones) {
+		for(i = 0; i < this.bones.length; ++i) {
+			var bone = this.bones[i];
+			this.boneMatrices.set(bone.boneMat.data);
+		}
+	}
+
+	for (i in this.meshes) {
+		mesh = this.meshes[i];
+
+		gl.activeTexture(gl.TEXTURE0);
+		gl.bindTexture(gl.TEXTURE_2D, mesh.diffuse);
+		gl.uniform1i(this.program.uniforms.uTexture0, 0);
+
+		for (j in mesh.submeshes) {
+			submesh = mesh.submeshes[j];
+
+			boneSet = this.boneMatrices.subarray(submesh.boneOffset * 16, (submesh.boneOffset + submesh.boneCount) * 16);
+			gl.uniformMatrix4fv(shader.uniform.boneMat, false, boneSet);
+			gl.drawElements(gl.TRIANGLES, submesh.indexCount, gl.UNSIGNED_SHORT, submesh.indexOffset * 2);
+		}
+	}
+};
+
+module.exports = SkinnedModel;
+
+});
+
 require.define("/program_handler.js", function (require, module, exports, __dirname, __filename) {
 var BaseAssetHandler = require("./base_asset_handler"), Utils = require("./utils");
 
@@ -1238,7 +1387,7 @@ module.exports = ProgramHandler;
 require.define("/world.js", function (require, module, exports, __dirname, __filename) {
 var Model = require("./model"), ModelInstance = require("./model_instance"), Mathematics = require("goom-math-js"),
 	AssetManager = require("./asset_manager"), TextureHandler = require("./texture_handler"), ModelHandler = require("./model_handler"),
-	ProgramHandler = require("./program_handler"), Camera = require("./camera");
+	ProgramHandler = require("./program_handler"), Camera = require("./camera"), Geometry = require("./geometry");
 
 /**
 	Creates an World.
@@ -1252,6 +1401,8 @@ var Model = require("./model"), ModelInstance = require("./model_instance"), Mat
 	@property {map} instances Map holding arrays of each model instances.
 	@property {array} allInstances Array holding references to all the model instances.
 	@property {Graphics.AssetManager} assetManager The asset manager used to fetch resources from the server.
+	@property {map} cameras Map holding the cameras in the world.
+	@property {Graphics.Camera} activeCamera The active camera in the scene.
 	@exports World as Graphics.World
 */
 function World(config, gl, viewport_width, viewport_height, callback) {
@@ -1259,8 +1410,14 @@ function World(config, gl, viewport_width, viewport_height, callback) {
 	this.viewportWidth = viewport_width;
 	this.viewportHeight = viewport_height;
 	this.gl = gl;
+	this.paused = true;
 	this.models = {};
 	this.instances = {};
+	this.geometries = {};
+	this.geometry_instances = {};
+	this.map = {};
+	this.cameras = {};
+	this.activeCamera = null;
 	this.allInstances = [];
 	this.assetManager = new AssetManager();
 	this.assetManager.registerHandler("(png|jpg|bmp|gif)", new TextureHandler());
@@ -1272,7 +1429,7 @@ function World(config, gl, viewport_width, viewport_height, callback) {
 	gl.enable(gl.DEPTH_TEST);
 	gl.depthFunc(gl.LEQUAL);
 
-	var downloading_models = 0, done_loading_instances = false;
+	var downloading_models = 0, done_loading_instances = false, cam, cam_data, plane_data;
 
 	//Load models
 	for (var key in config.render_models) {
@@ -1298,7 +1455,41 @@ function World(config, gl, viewport_width, viewport_height, callback) {
 		this.allInstances.push(model_instance);
 	}
 
+	//Load cameras
+	for (i = config.level.cameras.length - 1; i >= 0; i--) {
+		cam_data = config.level.cameras[i];
+
+		cam = new Camera(viewport_width, viewport_height);
+		if (cam_data.position) cam.setPosition(cam_data.position);
+		if (cam_data.target) cam.setTarget(cam_data.target);
+		if (cam_data.view_angle) cam.setViewAngle(cam_data.view_angle);
+		if (cam_data.far_limit) cam.setFarLimit(cam_data.far_limit);
+		if (cam_data.near_limit) cam.setNearLimit(cam_data.near_limit);
+		if (cam_data.up_vector) cam.setUpVector(cam_data.up_vector);
+		if (cam_data.orthographic) cam.setOrthographicProjection(cam_data.orthographic);
+
+		this.cameras[cam_data.id] = cam;
+		if (cam_data.active) this.activeCamera = cam;
+	}
+
+
+	var geom_program, mat;
+	//Load shader for geometries
+	this.assetManager.get(this.gl, '/assets/geometry.wglprog', function(prg) {
+		geom_program = prg;
+		for (i = config.level.planes.length - 1; i >= 0; i--) {
+			plane_data = config.level.planes[i];
+			//TODO: Don't ignore normals.
+			that.geometries[plane_data.id] = new Geometry(that.gl, geom_program, {"type": "box", "halfSize": {"x": 100, "y": 0.01, "z": 1}});
+			mat = new Mathematics.Matrix4D();
+			mat.translate(0, plane_data.offset, 0);
+			that.geometry_instances[plane_data.id] = [];
+			that.geometry_instances[plane_data.id].push(mat);
+		}
+	});
+
 	done_loading_instances = true;
+	this.paused = false;
 	//Call the callback when all the models are downloaded.
 	if (downloading_models === 0) callback();
 }
@@ -1307,24 +1498,25 @@ function World(config, gl, viewport_width, viewport_height, callback) {
 	Renders the world.
 */
 World.prototype.draw = function() {
+	if (this.paused) return;
+
 	var gl = this.gl;
 	//Clean up canvas before rendering.
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 	gl.clearColor(0, 0, 0, 1);
 
-	//TODO replace with cameras
-	var camera = new Camera(this.viewportWidth, this.viewportHeight);
-	var projection_matrix = new Mathematics.Matrix4D(), view_matrix = new Mathematics.Matrix4D();
-	view_matrix.makeTranslation(0, 0, -75);
-	projection_matrix.makePerspective(60, 1.0, 4096.0, 500/500);
-
 	//Draw the model instances
 	for (var key in this.instances) {
-		this.models[key].drawInstances(gl, projection_matrix, view_matrix, this.instances[key]);
+		this.models[key].drawInstances(gl, this.activeCamera.projection, this.activeCamera.view, this.instances[key]);
+	}
+
+	//Draw the geometry instances
+	for (key in this.geometry_instances) {
+		this.geometries[key].drawInstances(gl, this.activeCamera.projection, this.activeCamera.view, this.geometry_instances[key]);
 	}
 };
 
-World.prototype.updateInstances = function(data) {
+World.prototype.updateInstancesFromRemote = function(data) {
 	var j, len, instance_data, instance;
 
 	for (var i = data.length - 1; i >= 0; i--) {
@@ -1334,11 +1526,40 @@ World.prototype.updateInstances = function(data) {
 			instance = this.allInstances[j];
 
 			if (instance.id == instance_data.id) {
-				instance.update(instance_data);
+				instance.updateFromRemote(instance_data);
 				break;
 			}
 		}
 	}
+};
+
+/**
+	Approximate the instance positions from velocity.
+	@param {Number} duration Time since last frame.
+*/
+World.prototype.integrateIntances = function(duration) {
+	if (this.paused) return;
+	for (var i = 0, len = this.allInstances.length; i < len; i++) {
+		instance = this.allInstances[i];
+		instance.integrate(duration);
+	}
+};
+
+World.prototype.addInstance = function(data) {
+	//Initialize the array if it doesn't exist.
+	if (!this.instances[data.model]) this.instances[data.model] = [];
+	//Push the new instance.
+	var model_instance = new ModelInstance(data);
+	this.instances[data.model].push(model_instance);
+	this.allInstances.push(model_instance);
+};
+
+World.prototype.pause = function() {
+	this.paused = true;
+};
+
+World.prototype.resume = function() {
+	this.paused = false;
 };
 
 module.exports = World;
@@ -1360,19 +1581,49 @@ var Mathematics = require("goom-math-js");
 function ModelInstance(config) {
 	this.position = new Mathematics.Vector3D();
 	this.orientation = new Mathematics.Quaternion();
+	this.velocity = new Mathematics.Vector3D();
+	this.angular_velocity = new Mathematics.Vector3D();
 	this.transformationMatrix = new Mathematics.Matrix4D();
 	this.id = config.id;
 	this.model = config.model;
-	this.update(config);
+	this.updateFromRemote(config);
 }
+
+var __helperVector = new Mathematics.Vector3D();
 
 /**
 	Updates the instance with the given data.
 	@param {json} data the data to update this instance with.
 */
-ModelInstance.prototype.update = function(data) {
-	if (data.position) this.position.set(data.position.x, data.position.y, data.position.z);
-	if (data.orientation) this.orientation.set(data.orientation.r, data.orientation.i, data.orientation.j, data.orientation.k);
+ModelInstance.prototype.updateFromRemote = function(data) {
+	var distance = 0;
+
+	if (data.position) {
+		this.position.set(data.position.x, data.position.y, data.position.z);
+	}
+
+	if (data.orientation) {
+		//TODO: Smooth this
+		this.orientation.set(data.orientation.r, data.orientation.i, data.orientation.j, data.orientation.k);
+	}
+
+	if (data.velocity) {
+		this.velocity.set(data.velocity.x, data.velocity.y, data.velocity.z);
+	}
+
+	if (data.angular_velocity) {
+		this.angular_velocity.set(data.angular_velocity.x, data.angular_velocity.y, data.angular_velocity.z);
+	}
+
+	this.transformationMatrix.makeFromPositionAndOrientation(this.position, this.orientation);
+};
+
+/**
+	Integrates this instance and updates its position.
+*/
+ModelInstance.prototype.integrate = function(duration) {
+	this.position.add(this.velocity.scale(duration * 0.8, __helperVector));
+	this.orientation.addVector(this.angular_velocity.scale(duration * 0.8, __helperVector));
 	this.transformationMatrix.makeFromPositionAndOrientation(this.position, this.orientation);
 };
 
@@ -1681,8 +1932,8 @@ Quaternion.prototype.set = function(r, i, j, k) {
 };
 
 /**
-	Normalizes the quaternion, makeing it a valid orientation quaternion.
-	@returns {Mathematics.Quaternion} This quaternion normalized.
+	Normalkes the quaternion, making it a valid orientation quaternion.
+	@returns {Mathematics.Quaternion} This quaternion normalked.
 */
 Quaternion.prototype.normalize = function() {
 	var length = this.r * this.r + this.i * this.i + this.j * this.j + this.k * this.k;
@@ -1698,6 +1949,14 @@ Quaternion.prototype.normalize = function() {
 	this.j *= length;
 	this.k *= length;
 	return this;
+};
+
+/**
+	Returns the length of this quaternion.
+	@returns {Number} Length of the quaternion.
+*/
+Quaternion.prototype.length = function() {
+	return Math.sqrt(this.r * this.r + this.i * this.i + this.j * this.j + this.k * this.k);
 };
 
 /**
@@ -1758,6 +2017,21 @@ Quaternion.prototype.addVector = function(vector, destination) {
 	destination.i = this.i + i * 0.5;
 	destination.j = this.j + j * 0.5;
 	destination.k = this.k + k * 0.5;
+	return destination;
+};
+
+
+Quaternion.prototype.multiplyVector = function(vector, destination) {
+	if (destination === null || destination === undefined) destination = vector;
+
+	var i = this.r * vector.x + this.j * vector.z - this.k * vector.y,
+		j = this.r * vector.y + this.k * vector.x - this.i * vector.z,
+		k = this.r * vector.z + this.i * vector.y - this.j * vector.x,
+		r = -this.i * vector.x - this.j * vector.y - this.k * vector.z;
+
+	destination.x = i * this.r + r * -this.i + j * -this.k - k * -this.j;
+	destination.y = j * this.r + r * -this.j + k * -this.i - i * -this.k;
+	destination.z = k * this.r + r * -this.k + i * -this.j - j * -this.i;
 	return destination;
 };
 
@@ -2590,27 +2864,79 @@ var __helperVector2 = new Vector3D();
 	@returns {Mathematics.Matrix4D} this matrix as a look-at matrix.
 */
 Matrix4D.prototype.makeLookAt = function (eye, center, up) {
-	var z_axis = center.substract(eye, __helperVector).normalize();
-	var x_axis = up.crossProduct(z_axis, __helperVector2).normalize();
+	var x0, x1, x2, y0, y1, y2, z0, z1, z2, len,
+		eyex = eye.x,
+		eyey = eye.y,
+		eyez = eye.z,
+		upx = up.x,
+		upy = up.y,
+		upz = up.z,
+		centerx = center.x,
+		centery = center.y,
+		centerz = center.z;
 
-	this.data[0] = x_axis.x;
-	this.data[2] = z_axis.x;
+	if (eyex === centerx && eyey === centery && eyez === centerz) {
+		return this.makeIdentity();
+	}
+
+	z0 = eyex - centerx;
+	z1 = eyey - centery;
+	z2 = eyez - centerz;
+
+	len = 1 / Math.sqrt(z0 * z0 + z1 * z1 + z2 * z2);
+	z0 *= len;
+	z1 *= len;
+	z2 *= len;
+
+	x0 = upy * z2 - upz * z1;
+	x1 = upz * z0 - upx * z2;
+	x2 = upx * z1 - upy * z0;
+	len = Math.sqrt(x0 * x0 + x1 * x1 + x2 * x2);
+
+	if (!len) {
+		x0 = 0;
+		x1 = 0;
+		x2 = 0;
+	} else {
+		len = 1 / len;
+		x0 *= len;
+		x1 *= len;
+		x2 *= len;
+	}
+
+	y0 = z1 * x2 - z2 * x1;
+	y1 = z2 * x0 - z0 * x2;
+	y2 = z0 * x1 - z1 * x0;
+
+	len = Math.sqrt(y0 * y0 + y1 * y1 + y2 * y2);
+
+	if (!len) {
+		y0 = 0;
+		y1 = 0;
+		y2 = 0;
+	} else {
+		len = 1 / len;
+		y0 *= len;
+		y1 *= len;
+		y2 *= len;
+	}
+
+	this.data[0] = x0;
+	this.data[1] = y0;
+	this.data[2] = z0;
 	this.data[3] = 0;
-	this.data[4] = x_axis.y;
-	this.data[6] = z_axis.y;
+	this.data[4] = x1;
+	this.data[5] = y1;
+	this.data[6] = z1;
 	this.data[7] = 0;
-	this.data[8] = x_axis.z;
-	this.data[10] = z_axis.z;
+	this.data[8] = x2;
+	this.data[9] = y2;
+	this.data[10] = z2;
 	this.data[11] = 0;
-	this.data[12] = -x_axis.dotProduct(eye);
-	this.data[14] = -z_axis.dotProduct(eye);
+	this.data[12] = -(x0 * eyex + x1 * eyey + x2 * eyez);
+	this.data[13] = -(y0 * eyex + y1 * eyey + y2 * eyez);
+	this.data[14] = -(z0 * eyex + z1 * eyey + z2 * eyez);
 	this.data[15] = 1;
-
-	var y_axis = z_axis.crossProduct(x_axis);
-	this.data[1] = y_axis.x;
-	this.data[5] = y_axis.y;
-	this.data[9] = y_axis.z;
-	this.data[13] = -y_axis.dotProduct(eye);
 
 	return this;
 };
@@ -2732,7 +3058,7 @@ function Camera(viewport_width, viewport_height) {
 	this.viewportWidth = viewport_width;
 	this.viewportHeight = viewport_height;
 	this.isOrthographic = false;
-	this.position = new Mathematics.Vector3D(0,0,75);
+	this.position = new Mathematics.Vector3D(0,0,-75);
 	this.target = new Mathematics.Vector3D(0,0,0);
 	this.upVector = Mathematics.Vector3D.UP.clone();
 	this.view = new Mathematics.Matrix4D();
